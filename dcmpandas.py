@@ -100,7 +100,7 @@ def scrape(directory = '.',
                     value = [float(f) for f in v.value]
 
                 elif not ('\\' in value or '[' in value):
-                    if v.VR == 'IS' or v.VR == 'SL':
+                    if v.VR in ['IS','SL','US']:
                         value = int(value)
 
             h[key] = value
@@ -120,11 +120,21 @@ def scrape(directory = '.',
     tags =  pandas.DataFrame(tags,index=['Group','Element','Tag','VR'])
     
     # Save to disk
-    pickle.dump([tags, df],open(database_file,'wb'))
+    if database_file is not None:
+        pickle.dump([tags, df],open(database_file,'wb'))
+    else:
+        return tags,df
     
 def load(database_file='dicom.pickle'):
     '''Load a database file from the disk'''
     return pandas.read_pickle(database_file)
+
+def load_image(filename):
+    '''Load an image into a series'''
+    tags,df = scrape(database_file = None,
+                     glob_pattern = filename,
+                     verbose=0)
+    return df.iloc[0]
 
 if __name__=='__main__':
     pass

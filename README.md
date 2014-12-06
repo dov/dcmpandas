@@ -66,3 +66,12 @@ series.
     >>> Opens up an external viewer and shows image in slice location 
     In [9]: tags.SeriesDescription
     
+# Image viewing
+
+dcmpandas uses the image viewer giv from http://github.com/dov/giv 
+for viewing dicom images through the dcmpandas.view command.
+
+# TODO
+
+* Improve windows friendliness of the dcmpandas.view command.
+
