@@ -57,7 +57,7 @@ series.
 import os
 import sys
 import glob
-import pydicom as dicom
+import dicom
 import pandas
 import pickle
 import fnmatch
