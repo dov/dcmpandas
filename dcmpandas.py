@@ -176,28 +176,5 @@ def scrape(directory = '.',
     else:
         return tags,df
 
-    
-def load(database_file='dicom.pickle'):
-    '''Load a database file from the disk'''
-    return pd.read_pickle(database_file)
-
-def load_image(filename):
-    '''Load an image into a series'''
-    tags,df = scrape(database_file = None,
-                     glob_pattern = filename,
-                     verbose=0)
-    return df.iloc[0]
-    
-def load(database_file='dicom.pickle'):
-    '''Load a database file from the disk'''
-    return pandas.read_pickle(database_file)
-
-def load_image(filename):
-    '''Load an image into a series'''
-    tags,df = scrape(database_file = None,
-                     glob_pattern = filename,
-                     verbose=0)
-    return df.iloc[0]
-
 if __name__=='__main__':
     pass
