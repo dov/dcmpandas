@@ -58,7 +58,7 @@ import os
 import sys
 import glob
 import dicom
-import pandas
+import pandas as pd
 import pickle
 import fnmatch
 
