@@ -170,7 +170,7 @@ def scrape(directory = '.',
     df = pd.merge(df, pd.DataFrame(fail_path,  columns=['Filename']), how="outer")
     df['ReadError'] = read_error
 
-    Save to disk
+    # Save to disk
     if database_file is not None:
         pickle.dump([tags, df],open(database_file,'wb'))
     else:
