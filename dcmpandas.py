@@ -87,7 +87,6 @@ def scrape(directory = '.',
            sort_slice_location = True,
            recursive = True):
     """Scrape a directory of data
-
     Flags:
       guess_convert -- Translate some common fields into floats and ints.
     """
@@ -95,6 +94,9 @@ def scrape(directory = '.',
     # Create A db of the entire dataset
     db = []
     s = []
+    success_path = []
+    fail_path = []
+    read_error = []
     tags = {}
     for root, dirnames, filenames in os.walk(directory):
         if verbose:
@@ -107,62 +109,84 @@ def scrape(directory = '.',
                 continue
             
             if verbose:
-                print 'Processing',f
-            ds = dicom.read_file(f,defer_size='10KB')
-            h = {}
-            h['Filename'] = f
-            for k in ds.keys():
-                # Skip images
-                if (k.group,k.elem) == (0x7fe0,0x0010):
-                    continue
-                v = ds[k]
-                key = (v.name
-                       .replace(' ','')
-                       .replace('\'','')
-                       .replace('/','')
-                       .replace('[','')
-                       .replace(']','')
-                       .replace('(','')
-                       .replace(')','')
-                       )
-                # TBD - interpret VR and act accordingly
-                value = str(v.value)
-    
-                # Carry out some common convertion.
-                if guess_convert:
-                    if (k.group,k.elem) in [(0x20,0x1041), # Slice location
-                                            (0x18,0x50)    # Slice thickness
-                                            ]:
-                        value = float(value)
-                    elif (k.group,k.elem) in [(0x28,0x30), # Pixel spacing
-                                            ]:
-                        value = [float(f) for f in v.value]
-    
-                    elif not ('\\' in value or '[' in value):
-                        if v.VR in ['IS','SL','US']:
-                            value = int(value)
-    
-                h[key] = value
-                h['X%04x_%04x'%(k.group,k.elem)]=h[key] # Use both name and group,element syntax
-                tags[key] = (k.group,
-                             k.element,
-                             '(%04x_%04x)'%(k.group,k.elem),
-                             v.VR)
-            db += [h]
+                print 'Processing', f
+            try:
+                ds = dicom.read_file(f,defer_size='10KB')
+                h = {}
+                h['Filename'] = f
+                for k in ds.keys():
+                    # Skip images
+                    if (k.group,k.elem) == (0x7fe0,0x0010):
+                        continue
+                    v = ds[k]
+                    key = (v.name
+                           .replace(' ','')
+                           .replace('\'','')
+                           .replace('/','')
+                           .replace('[','')
+                           .replace(']','')
+                           .replace('(','')
+                           .replace(')','')
+                           )
+                    # TBD - interpret VR and act accordingly
+                    value = str(v.value)
+
+                    # Carry out some common convertion.
+                    if guess_convert:
+                        if (k.group,k.elem) in [(0x20,0x1041), # Slice location
+                                                (0x18,0x50)    # Slice thickness
+                                                ]:
+                            value = float(value)
+                        elif (k.group,k.elem) in [(0x28,0x30), # Pixel spacing
+                                                ]:
+                            value = [float(f) for f in v.value]
+
+                        elif not ('\\' in value or '[' in value):
+                            if v.VR in ['IS','SL','US']:
+                                value = int(value)
+
+                    h[key] = value
+                    h['X%04x_%04x'%(k.group,k.elem)]=h[key] # Use both name and group,element syntax
+                    tags[key] = (k.group,
+                                 k.element,
+                                 '(%04x_%04x)'%(k.group,k.elem),
+                                 v.VR)
+                db += [h]
+                success_path.append(h['Filename'])
+                read_error.append(0)
+            except:
+                print 'failed:', h['Filename']
+                fail_path.append(h['Filename'])
+                read_error.append(1)
         
     # Create a dataset of everything
     if sort_slice_location:
         db = sorted(db, key=lambda x: 0 if not 'SliceLocation' in x else x['SliceLocation'])
 
-    df = pandas.DataFrame(db)
+    df = pd.DataFrame(db)
 
-    tags =  pandas.DataFrame(tags,index=['Group','Element','Tag','VR'])
+    tags =  pd.DataFrame(tags,index=['Group','Element','Tag','VR'])
     
-    # Save to disk
+    df = pd.merge(df, pd.DataFrame(fail_path,  columns=['Filename']), how="outer")
+    df['ReadError'] = read_error
+
+    Save to disk
     if database_file is not None:
         pickle.dump([tags, df],open(database_file,'wb'))
     else:
         return tags,df
+
+    
+def load(database_file='dicom.pickle'):
+    '''Load a database file from the disk'''
+    return pd.read_pickle(database_file)
+
+def load_image(filename):
+    '''Load an image into a series'''
+    tags,df = scrape(database_file = None,
+                     glob_pattern = filename,
+                     verbose=0)
+    return df.iloc[0]
     
 def load(database_file='dicom.pickle'):
     '''Load a database file from the disk'''
