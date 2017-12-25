@@ -79,7 +79,7 @@ def view(filenames):
     """View the filenames with an external viewer"""
     os.system(viewer + ' ' + ' '.join(filenames) + '&')
 
-def scrape(directory = '.',
+def safe_scrape(directory = '.',
            database_file='dicom.pickle',
            glob_pattern = '*',
            verbose=1,
@@ -90,17 +90,14 @@ def scrape(directory = '.',
     Flags:
       guess_convert -- Translate some common fields into floats and ints.
     """
-
+    
     # Create A db of the entire dataset
     db = []
     s = []
-    success_path = []
-    fail_path = []
-    read_error = []
     tags = {}
     for root, dirnames, filenames in os.walk(directory):
         if verbose:
-            print 'Visiting ' + root
+            print 'Visiting   ' + root
         if root != directory and not recursive:
             continue
         for fn in fnmatch.filter(filenames, glob_pattern):
@@ -152,23 +149,23 @@ def scrape(directory = '.',
                                  '(%04x_%04x)'%(k.group,k.elem),
                                  v.VR)
                 db += [h]
-                success_path.append(h['Filename'])
-                read_error.append(0)
-            except:
-                print 'failed:', h['Filename']
-                fail_path.append(h['Filename'])
-                read_error.append(1)
-        
+                if verbose: 
+                    print ' Successful', h['Filename']
+            except Exception as e:
+                failed_placeholder = {'AccessionNumber': ds.AccessionNumber,  'Filename': h['Filename'], 'ReadError': e} # collect 
+                db.append(failed_placeholder)
+                if verbose:
+                    print ' Failed    ', h['Filename'], e
+
     # Create a dataset of everything
     if sort_slice_location:
         db = sorted(db, key=lambda x: 0 if not 'SliceLocation' in x else x['SliceLocation'])
-
+    
     df = pd.DataFrame(db)
+    if 'ReadError' not in df.columns: # if this is true, then there were no failures
+        df['ReadError'] = np.nan
 
     tags =  pd.DataFrame(tags,index=['Group','Element','Tag','VR'])
-    
-    df = pd.merge(df, pd.DataFrame(fail_path,  columns=['Filename']), how="outer")
-    df['ReadError'] = read_error
 
     # Save to disk
     if database_file is not None:
