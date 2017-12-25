@@ -79,7 +79,7 @@ def view(filenames):
     """View the filenames with an external viewer"""
     os.system(viewer + ' ' + ' '.join(filenames) + '&')
 
-def safe_scrape(directory = '.',
+def scrape(directory = '.',
            database_file='dicom.pickle',
            glob_pattern = '*',
            verbose=1,
