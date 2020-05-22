@@ -54,26 +54,20 @@ series.
 # Utility functions for using pandas with a directory of dicom
 # images.
 
+from __future__ import print_function
 import os
 import sys
 import glob
-import dicom
+import pydicom
 import pandas as pd
 import pickle
 import fnmatch
+import numpy as np
+import pdb
 
 # Default viewer is giv. See github.com/dov/giv .
 viewer = 'giv'
 
-def is_dicom(filename):
-    try:
-        fh = open(filename)
-        fh.seek(0x80)
-        if fh.read(4) != 'DICM':
-            return False
-        return True
-    except:
-        return False
     
 def view(filenames):
     """View the filenames with an external viewer"""
@@ -97,18 +91,21 @@ def scrape(directory = '.',
     tags = {}
     for root, dirnames, filenames in os.walk(directory):
         if verbose:
-            print 'Visiting   ' + root
+            print('Visiting ' + root)
         if root != directory and not recursive:
             continue
         for fn in fnmatch.filter(filenames, glob_pattern):
             f = os.path.join(root, fn)
-            if not is_dicom(f):
+            if not pydicom.misc.is_dicom(f):
+                if verbose:
+                    print('Skipping non-dicom file: '+f)
+
                 continue
             
             if verbose:
-                print 'Processing', f
+                print('Processing', f)
             try:
-                ds = dicom.read_file(f,defer_size='10KB')
+                ds = pydicom.read_file(f,defer_size='10KB')
                 h = {}
                 h['Filename'] = f
                 for k in ds.keys():
@@ -124,11 +121,13 @@ def scrape(directory = '.',
                            .replace(']','')
                            .replace('(','')
                            .replace(')','')
+                           .replace('-','')
                            )
                     # TBD - interpret VR and act accordingly
-                    value = str(v.value)
+#                    pdb.set_trace()
+                    value = str(v.value)  # Do I need to encode to bytes?
 
-                    # Carry out some common convertion.
+                    # Carry out some common conversion.
                     if guess_convert:
                         if (k.group,k.elem) in [(0x20,0x1041), # Slice location
                                                 (0x18,0x50)    # Slice thickness
@@ -150,12 +149,12 @@ def scrape(directory = '.',
                                  v.VR)
                 db += [h]
                 if verbose: 
-                    print ' Successful', h['Filename']
+                    print(' Successful', h['Filename'])
             except Exception as e:
                 failed_placeholder = {'AccessionNumber': ds.AccessionNumber,  'Filename': h['Filename'], 'ReadError': e} # collect 
                 db.append(failed_placeholder)
                 if verbose:
-                    print ' Failed    ', h['Filename'], e
+                    print(' Failed    ', h['Filename'], e)
 
     # Create a dataset of everything
     if sort_slice_location:
@@ -166,12 +165,26 @@ def scrape(directory = '.',
         df['ReadError'] = np.nan
 
     tags =  pd.DataFrame(tags,index=['Group','Element','Tag','VR'])
-
+    
     # Save to disk
     if database_file is not None:
         pickle.dump([tags, df],open(database_file,'wb'))
     else:
         return tags,df
+
+    if verbose:
+        print('Scanning done. Load result by `tags,df = dp.load()`')
+
+def load(database_file='dicom.pickle'):
+    '''Load a database file from the disk'''
+    return pd.read_pickle(database_file)
+
+def load_image(filename):
+    '''Load an image into a series'''
+    tags,df = scrape(database_file = None,
+                     glob_pattern = filename,
+                     verbose=0)
+    return df.iloc[0]
 
 if __name__=='__main__':
     pass
