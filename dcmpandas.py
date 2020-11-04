@@ -123,10 +123,8 @@ def scrape(directory = '.',
                            .replace(')','')
                            .replace('-','')
                            )
-                    # TBD - interpret VR and act accordingly
-#                    pdb.set_trace()
-                    value = str(v.value)  # Do I need to encode to bytes?
 
+                    value = v.value  # Do I need to encode to bytes?
                     # Carry out some common conversion.
                     if guess_convert:
                         if (k.group,k.elem) in [(0x20,0x1041), # Slice location
@@ -135,12 +133,24 @@ def scrape(directory = '.',
                             value = float(value)
                         elif (k.group,k.elem) in [(0x28,0x30), # Pixel spacing
                                                 ]:
-                            value = [float(f) for f in v.value]
+                            value = tuple(float(f) for f in v.value)
 
-                        elif not ('\\' in value or '[' in value):
+                        elif not ('\\' in str(value) or '[' in str(value)):
                             if v.VR in ['IS','SL','US']:
                                 value = int(value)
-
+                            elif isinstance(value, pydicom.valuerep.DSfloat):
+                                value = float(value)
+                            elif isinstance(value, bytes):
+                                value = value.decode('utf-8')
+                            else:
+                                value = str(value)
+                            
+                    # Hack to get around pickle limitation
+                    if not type(value) in [str,list,dict,tuple,int,float]:
+                        value = str(value)
+                    # Turn lists to tuples to make immutable
+                    if type(value)==list:
+                        value = tuple(value) 
                     h[key] = value
                     h['X%04x_%04x'%(k.group,k.elem)]=h[key] # Use both name and group,element syntax
                     tags[key] = (k.group,
@@ -150,7 +160,7 @@ def scrape(directory = '.',
                 db += [h]
                 if verbose: 
                     print(' Successful', h['Filename'])
-            except Exception as e:
+            except RuntimeError as e:
                 failed_placeholder = {'AccessionNumber': ds.AccessionNumber,  'Filename': h['Filename'], 'ReadError': e} # collect 
                 db.append(failed_placeholder)
                 if verbose:
