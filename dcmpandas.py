@@ -105,14 +105,17 @@ def scrape(directory = '.',
             if verbose:
                 print('Processing', f)
             try:
-                ds = pydicom.dcmread(f,defer_size='10KB')
+                ds = pydicom.dcmread(f,stop_before_pixels=True)
+
+                # Merge the ds tags and the ds file_meta tags
+                merge_ds = (
+                    { k : ds[k] for k in ds.keys() }
+                    | { k : ds.file_meta[k] for k in ds.file_meta.keys() })
+
                 h = {}
                 h['Filename'] = f
-                for k in ds.keys():
-                    # Skip images
-                    if (k.group,k.elem) == (0x7fe0,0x0010):
-                        continue
-                    v = ds[k]
+                for k in merge_ds.keys():
+                    v = merge_ds[k]
                     key = (v.name
                            .replace(' ','')
                            .replace('\'','')
@@ -160,6 +163,7 @@ def scrape(directory = '.',
                 db += [h]
                 if verbose: 
                     print(' Successful', h['Filename'])
+
             except RuntimeError as e:
                 failed_placeholder = {'AccessionNumber': ds.AccessionNumber,  'Filename': h['Filename'], 'ReadError': e} # collect 
                 db.append(failed_placeholder)

@@ -39,7 +39,7 @@ series.
     181    Ax Diff ep2d_mddw_30_a/p rpt
     Name: SeriesDescription, dtype: object
 
-    In [5]: df.groupby(['SeriesDescription','SeriesNumber']).size()
+    In [5]: df.groupby(['SeriesDescription','SeriesNumber']).size().sort_index(level='SeriesNumber')
     Out[5]: 
     SeriesDescription             SeriesNumber
     Ax 3D GRE T1                  4               60
@@ -49,7 +49,7 @@ series.
     Ax t2_tse_spair               3               60
     dtype: int64
 
-    In [6]: s2 = df[df.SeriesNumber==2]
+    In [6]: s2 = df[df['SeriesNumber']==2]
     In [7]: s2[['Filename','SliceLocation']]
          Filename  SliceLocation
     1    48863538     -86.537117
@@ -62,8 +62,9 @@ series.
     172  48862740      84.462883
     175  48862726      87.462883
     178  48862712      90.462883
+
     In [8]: dp.view(s2.Filename)
-    >>> Opens up an external viewer and shows image in slice location 
+    >>> Opens up an external viewer and shows image in slice location (currently only works if the file ends with the .dcm extension)
     In [9]: tags.SeriesDescription
     
 # Image viewing
